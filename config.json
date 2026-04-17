@@ -1,0 +1,5 @@
+{
+    "interval_minutes": 1,
+    "enabled": true,
+    "cards_per_session": 1
+}
