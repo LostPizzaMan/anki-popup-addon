@@ -84,6 +84,8 @@ def _on_timer_fire() -> None:
     dlg = PopupReviewer(card, total=total)
     dlg.finished.connect(lambda _: start_timer())
     dlg.show()
+    dlg.raise_()
+    dlg.activateWindow()
 
 
 def _setup_menu() -> None:
