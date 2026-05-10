@@ -1,3 +1,5 @@
+import re
+
 from anki.cards import Card
 from aqt import mw
 from aqt.qt import (
@@ -11,6 +13,7 @@ from aqt.qt import (
     QVBoxLayout,
     QWidget,
 )
+from aqt.sound import av_player
 from aqt.webview import AnkiWebView
 
 
@@ -39,6 +42,7 @@ class PopupReviewer(QDialog):
         self._update_progress_label()
 
         self._web = AnkiWebView(self)
+        self._web.set_bridge_command(self._on_bridge_cmd, self)
         self._web.setMinimumHeight(300)
         layout.addWidget(self._web, stretch=1)
 
@@ -78,13 +82,61 @@ class PopupReviewer(QDialog):
         else:
             self._progress_label.setText("")
 
+    _REPLAY_BUTTON = """\
+        <a class="replay-button soundLink" href="#" onclick="pycmd('play:{side}:{idx}'); return false;">
+            <svg class="playImage" viewBox="0 0 64 64" version="1.1">
+                <circle cx="32" cy="32" r="29"></circle>
+                <path d="M56.502,32.301l-37.502,20.101l0.329,-40.804l37.173,20.703Z"></path>
+            </svg>
+        </a>
+    """
+
+    def _av_tag_to_button(self, m: re.Match) -> str:
+        return self._REPLAY_BUTTON.format(side=m.group(1), idx=m.group(2))
+
+    _PLAY_BUTTON_CSS = """\
+        .replay-button {
+            text-decoration: none;
+            display: inline-flex;
+            vertical-align: middle;
+            margin: 3px;
+        }
+        .replay-button svg {
+            width: 40px;
+            height: 40px;
+        }
+        .replay-button svg circle {
+            fill: #fff;
+            stroke: #414141;
+        }
+        .replay-button svg path {
+            fill: #414141;
+        }
+    """
+
     def _render(self, html: str) -> None:
-        note_type_css = self._card.note_type().get("css", "")
-        self._web.stdHtml(f'<style>{note_type_css}</style><div class="card">{html}</div>')
+        clean_html = re.sub(r"\[anki:play:([qa]):(\d+)\]", self._av_tag_to_button, html)
+        self._web.stdHtml(
+            f'<div class="card">{clean_html}</div>'
+            f"<style>{self._PLAY_BUTTON_CSS}</style>"
+        )
+
+    def _on_bridge_cmd(self, cmd: str) -> bool:
+        if not cmd.startswith("play:"):
+            return False
+        parts = cmd.split(":")
+        if len(parts) != 3:
+            return False
+        side, idx = parts[1], int(parts[2])
+        tags = self._card.question_av_tags() if side == "q" else self._card.answer_av_tags()
+        if 0 <= idx < len(tags):
+            av_player.play_tags([tags[idx]])
+        return True
 
     def _show_front(self) -> None:
         self._answer_shown = False
         self._render(self._card.question())
+        av_player.play_tags(self._card.question_av_tags())
         self._show_answer_btn.setVisible(True)
         self._grade_widget.setVisible(False)
 
@@ -93,6 +145,7 @@ class PopupReviewer(QDialog):
             return
         self._answer_shown = True
         self._render(self._card.answer())
+        av_player.play_tags(self._card.answer_av_tags())
         self._show_answer_btn.setVisible(False)
         self._grade_widget.setVisible(True)
 
