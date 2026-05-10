@@ -168,3 +168,11 @@ class PopupReviewer(QDialog):
                 return
 
         self.accept()
+
+    def reject(self) -> None:
+        av_player.stop_and_clear_queue()
+        super().reject()
+
+    def accept(self) -> None:
+        av_player.stop_and_clear_queue()
+        super().accept()
