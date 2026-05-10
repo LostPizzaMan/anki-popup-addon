@@ -117,8 +117,8 @@ class PopupReviewer(QDialog):
     def _render(self, html: str) -> None:
         clean_html = re.sub(r"\[anki:play:([qa]):(\d+)\]", self._av_tag_to_button, html)
         self._web.stdHtml(
-            f'<div class="card">{clean_html}</div>'
             f"<style>{self._PLAY_BUTTON_CSS}</style>"
+            f'<div class="card">{clean_html}</div>'
         )
 
     def _on_bridge_cmd(self, cmd: str) -> bool:
