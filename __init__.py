@@ -5,7 +5,7 @@ from typing import Optional
 # os.environ["QTWEBENGINE_REMOTE_DEBUGGING"] = "8089"
 
 from aqt import gui_hooks, mw
-from aqt.qt import QAction, QActionGroup, QMenu, QMessageBox, Qt, QTimer
+from aqt.qt import QAction, QActionGroup, QMenu, Qt, QTimer
 
 from .popup import PopupReviewer
 
@@ -55,14 +55,6 @@ def _is_reviewing() -> bool:
     return isinstance(mw.state, str) and mw.state == "review"
 
 
-def _show_no_cards_due() -> None:
-    msg = QMessageBox(mw)
-    msg.setWindowTitle("Popup Reviewer")
-    msg.setText("No cards are currently due.")
-    msg.setWindowFlags(msg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
-    msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-    msg.show()
-
 
 def _on_timer_fire() -> None:
     if mw.col is None:
@@ -76,7 +68,6 @@ def _on_timer_fire() -> None:
     card = mw.col.sched.getCard()
 
     if card is None:
-        _show_no_cards_due()
         start_timer()
         return
 
