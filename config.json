@@ -1,5 +1,8 @@
 {
     "interval_minutes": 1,
     "enabled": true,
-    "cards_per_session": 1
+    "cards_per_session": 1,
+    "mode": "full",
+    "compact_autofit": true,
+    "compact_geometry": null
 }

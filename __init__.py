@@ -10,6 +10,8 @@ from aqt.qt import QAction, QActionGroup, QMenu, Qt, QTimer
 from .popup import PopupReviewer
 
 _timer: Optional[QTimer] = None
+# Keeps the parentless compact popup alive until it closes
+_popup: Optional[PopupReviewer] = None
 
 DELAY_OPTIONS = [
     ("6 seconds", 0.1),
@@ -21,6 +23,8 @@ DELAY_OPTIONS = [
 ]
 
 CARDS_OPTIONS = [1, 2, 3, 5, 10]
+
+MODE_OPTIONS = [("Full window", "full"), ("Compact (corner)", "compact")]
 
 
 def get_config() -> dict:
@@ -56,7 +60,14 @@ def _is_reviewing() -> bool:
 
 
 
+def _on_popup_finished() -> None:
+    global _popup
+    _popup = None
+    start_timer()
+
+
 def _on_timer_fire() -> None:
+    global _popup
     if mw.col is None:
         start_timer()
         return
@@ -71,12 +82,17 @@ def _on_timer_fire() -> None:
         start_timer()
         return
 
-    total = int(get_config().get("cards_per_session", 1))
-    dlg = PopupReviewer(card, total=total)
-    dlg.finished.connect(lambda _: start_timer())
+    cfg = get_config()
+    total = int(cfg.get("cards_per_session", 1))
+    compact = cfg.get("mode", "full") == "compact"
+    autofit = bool(cfg.get("compact_autofit", True))
+    dlg = PopupReviewer(card, total=total, compact=compact, autofit=autofit)
+    _popup = dlg
+    dlg.finished.connect(lambda _: _on_popup_finished())
     dlg.show()
-    dlg.raise_()
-    dlg.activateWindow()
+    if not compact:
+        dlg.raise_()
+        dlg.activateWindow()
 
 
 def _setup_menu() -> None:
@@ -150,6 +166,42 @@ def _setup_menu() -> None:
         cards_menu.addAction(action)
 
     menu.addMenu(cards_menu)
+
+    # Mode submenu
+    mode_menu = QMenu("Mode", mw)
+    mode_group = QActionGroup(mw)
+    mode_group.setExclusive(True)
+    current_mode = get_config().get("mode", "full")
+
+    for label, mode in MODE_OPTIONS:
+        action = QAction(label, mw)
+        action.setCheckable(True)
+        action.setChecked(current_mode == mode)
+
+        def on_mode(checked: bool, m: str = mode) -> None:
+            if not checked:
+                return
+            cfg = get_config()
+            cfg["mode"] = m
+            save_config(cfg)
+
+        action.toggled.connect(on_mode)
+        mode_group.addAction(action)
+        mode_menu.addAction(action)
+
+    menu.addMenu(mode_menu)
+
+    autofit_action = QAction("Auto-fit compact popup", mw)
+    autofit_action.setCheckable(True)
+    autofit_action.setChecked(bool(get_config().get("compact_autofit", True)))
+
+    def on_autofit(checked: bool) -> None:
+        cfg = get_config()
+        cfg["compact_autofit"] = checked
+        save_config(cfg)
+
+    autofit_action.toggled.connect(on_autofit)
+    menu.addAction(autofit_action)
 
     mw.form.menuTools.addMenu(menu)
 
